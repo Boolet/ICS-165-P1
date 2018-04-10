@@ -20,7 +20,10 @@ int doalg( int n, int k, int Best[]){
         temp->index = i+1;
         temp->next = initialLosers[0];
         initialLosers[0] = temp;
+	initialLosers[i+1] = 0;
+        sizes[i+1] = 0;
     }
+    sizes[0] = n;
     
     
     int lastHighest = 0;
@@ -77,7 +80,6 @@ int runoff(int index, int sizes[], link* losers[]){
     while(remaining > 1){
         for(i = 0; i < remaining-1; i+=2){    //check for the odd man out
             int result = COMPARE(localLosers[i], localLosers[i+1]);
-            
             link* newLoser = malloc(sizeof(link));
             
             if(result == 1){
