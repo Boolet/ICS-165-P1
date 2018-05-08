@@ -59,7 +59,7 @@ int QCOUNT(int arg1, ...) {
     
     va_start(ap, arg1);
     
-    if (arg1<-2 || arg1>3) {
+    if (arg1<-2 || arg1>4) {
         va_end(ap);
         printf("******* ERROR: QCOUNT(arg1, ...) -- 'arg1'=%d out of range **********\n",arg1);
         return(-1);
@@ -93,19 +93,24 @@ int QCOUNT(int arg1, ...) {
         }
         j = 0;
         //custom array for our tests
-        for(i=1; i<=4; i++){
+        
+        /*for(i=1; i<=4; i++){
             marble[i] = 0;
         }
         for (i=5; i<=arraysize; i++) {
             marble[i] = dshrandom(0)<0.5 ? 0 : 1;
             j += marble[i];
-        }
-        /*
+        }*/
+        
          for (i=1; i<=arraysize; i++) {
          marble[i] = dshrandom(0)<0.5 ? 0 : 1;
          j += marble[i];
          }
-         */
+        /*
+        for(int k = 1; k <= arraysize; ++k){
+            printf("%d", marble[k]);
+        }
+        printf("\n");*/
         OneCount = j;
         AnswerValue = (j < arraysize-j) ? 0 : (j > arraysize-j) ? 1 : -1;
         querycount = 0;
@@ -152,6 +157,12 @@ int QCOUNT(int arg1, ...) {
         printf("\n");
         return(-2);
     }
+    if (arg1==4) {
+        for(int k = 1; k <= arraysize; ++k){
+            printf("%d", marble[k]);
+        }
+        printf("\n");
+    }
     return(-100000);
 }
 
@@ -172,14 +183,15 @@ void setFourhead(int a, int b, int c, int* fourhead){
 int majorityKnown(int typeA, int typeB, int n){
     if(typeA > n/2) return 1;
     if(typeB > n/2) return 2;
+    if(typeA + typeB == n) return 3;
     return 0;
 }
 
-void twosRunner(int twos[], int twosCount, int* fours, int* foursCount, int* typeA, int* typeB, int* fourhead, int* pairs, int* pairsCount){
+void twosRunner(int* twos, int twosCount, int* fours, int* foursCount, int* typeA, int* typeB, int* fourhead, int* pairs, int* pairsCount){
     
     int currentHeadParity = -1; //0 is even parity, 1 is odd parity, -1 for unknown; tracking CURRENT twos
-    int pairsStartEven[twosCount/2];    //for the first two unchecked elements being of even parity
-    int pairsStartOdd[twosCount/2]; // and for odd parity
+    int pairsStartEven[twosCount];    //for the first two unchecked elements being of even parity
+    int pairsStartOdd[twosCount]; // and for odd parity
     int pairsIndex = 0;
     int foundZeros = 0;
     int knownStart = -1;
@@ -189,8 +201,8 @@ void twosRunner(int twos[], int twosCount, int* fours, int* foursCount, int* typ
         //query the end of the previous group of twos and the front of the next
         int result = query(twos[i]+2, twos[i]+3, twos[i+1], twos[i+1]+1);
         if(result == 2){
-            *typeA += 1;
-            *typeB += 1;
+            (*typeA) += 1;
+            (*typeB) += 1;
             if(currentHeadParity == 0){
                 pairsStartEven[pairsIndex] = twos[i]+2;
                 pairsStartOdd[pairsIndex++] = twos[i]+2;
@@ -214,15 +226,19 @@ void twosRunner(int twos[], int twosCount, int* fours, int* foursCount, int* typ
                 setFourhead(twos[i]+2, twos[i]+3, twos[i+1], fourhead);
             }
             if(currentHeadParity == -1){  //if this chain of twos starts at the beginning
-                knownStart = (foundZeros % 2) + 1;
+                knownStart = (foundZeros + 1)  % 2;
+                if(knownStart == 1){
+                    (*typeA)++;
+                    (*typeB)++;
+                }
             }
             currentHeadParity = 1;  //and the next head's parity is always odd
             //now we need to save the group of four to check later
-            fours[*foursCount++] = twos[i]+2;
+            fours[(*foursCount)++] = twos[i]+2;
             
         } else if(result == 0){
-            *typeA += 2;
-            *typeB += 2;
+            (*typeA) += 2;
+            (*typeB) += 2;
             ++foundZeros;
             if(currentHeadParity == 0){
                 currentHeadParity = 1;
@@ -239,33 +255,46 @@ void twosRunner(int twos[], int twosCount, int* fours, int* foursCount, int* typ
         int result = query(twos[0],twos[0]+1,fourhead[0], fourhead[1]);
         if (result == 0){
             knownStart = 0;
-            *typeB += 2;
+            (*typeB) += 2;
         }else if(result == 4){
             knownStart = 0;
-            *typeA += 2;
+            (*typeA) += 2;
         } else if (result == 2){
             knownStart = 1;
-            *typeA += 1;
-            *typeB += 1;
-        }
-        if(foundZeros % 2 == 1){
-            //but if we had an odd number of zeros then the ends have to be a zero or a four
+            (*typeA) += 1;
+            (*typeB) += 1;
         }
     } else if(knownStart == 0){
         pairsStartEven[pairsIndex++] = twos[0];
     }
     
-    //add the beginning two elements and the end two elements based on what we know
-    if(foundZeros % 2 == 0 && knownStart == 1){
-        pairsStartOdd[pairsIndex++] = twos[i]+3;
-    } else if(foundZeros % 2 == 1 && knownStart == 0){
-        pairsStartEven[pairsIndex++] = twos[i]+3;
+    if(currentHeadParity == -1){    //never found a four
+        //add the end two elements based on what we know
+        if(foundZeros % 2 == 0 && knownStart == 1){
+            pairsStartOdd[pairsIndex++] = twos[i]+2;
+        } else if(foundZeros % 2 == 1 && knownStart == 0){
+            pairsStartEven[pairsIndex++] = twos[i]+2;
+        } else {
+            (*typeA)++;
+            (*typeB)++;
+        }
+    } else {    //found a four
+        if(currentHeadParity == 0){
+            if(knownStart == 0)
+                pairsStartEven[pairsIndex++] = twos[i]+2;
+            else
+                pairsStartOdd[pairsIndex++] = twos[i]+2;
+        }
+        else{
+            (*typeA)++;
+            (*typeB)++;
+        }
     }
     
     for(int j = 0; j < pairsIndex; ++j){
         pairs[j] = knownStart == 1 ? pairsStartOdd[j] : pairsStartEven[j];
     }
-    *pairsCount = pairsIndex;
+    (*pairsCount) = pairsIndex;
     
 }
 
@@ -282,8 +311,10 @@ int bruteForceOnFive(int a, int b, int c, int d, int e, int* fourhead){
         int subresult = query(a, b, d, e);
         if(subresult == 4){ // 2/2/4 -> 11011
             setFourhead(a, b, d, fourhead);
+            output = 4;
         } else if(subresult == 2){  // 2/2/2 -> 11101
             setFourhead(a, c, e, fourhead);
+            output = 4;
         } else if(subresult == 0){  // 2/2/0 -> 10001
             setFourhead(b, c, d, fourhead);
         }
@@ -311,13 +342,13 @@ void handlePairs(int* pairs, int pairsCount, int* fourhead, int* bIndex, int* ty
     for(i = 0; i < pairsCount-1; i+=2){
         int result = query(pairs[i], pairs[i+1], fourhead[0], fourhead[1]);
         if(result == 0){
-            *typeB += 4;
-            *bIndex = pairs[i];
+            (*typeB) += 4;
+            (*bIndex) = pairs[i];
         } else if(result == 2){
-            *typeA += 2;
-            *typeB += 2;
+            (*typeA) += 2;
+            (*typeB) += 2;
         } else if(result == 4){
-            *typeA += 4;
+            (*typeA) += 4;
         }
     }
     
@@ -325,10 +356,10 @@ void handlePairs(int* pairs, int pairsCount, int* fourhead, int* bIndex, int* ty
     if(pairsCount % 2 == 1){
         int result = query(pairs[i], pairs[i]+1, fourhead[0], fourhead[1]);
         if(result == 0){
-            *typeB += 2;
-            *bIndex = pairs[i];
+            (*typeB) += 2;
+            (*bIndex) = pairs[i];
         } else if(result == 4){
-            *typeA += 2;
+            (*typeA) += 2;
         }
     }
 }
@@ -338,13 +369,13 @@ void handleFours(int* fours, int foursCount, int* fourhead, int* bIndex, int* ty
     for(i = 0; i < foursCount-1; i+=2){
         int result = query(fours[i], fours[i+1], fourhead[0], fourhead[1]);
         if(result == 0){
-            *typeB += 8;
-            *bIndex = fours[i];
+            (*typeB) += 8;
+            (*bIndex) = fours[i];
         } else if(result == 2){
-            *typeA += 4;
-            *typeB += 4;
+            (*typeA) += 4;
+            (*typeB) += 4;
         } else if(result == 4){
-            *typeA += 8;
+            (*typeA) += 8;
         }
     }
     
@@ -352,10 +383,10 @@ void handleFours(int* fours, int foursCount, int* fourhead, int* bIndex, int* ty
     if(foursCount % 2 == 1){
         int result = query(fours[i], fours[i]+1, fourhead[0], fourhead[1]);
         if(result == 0){
-            *typeB += 4;
-            *bIndex = fours[i];
+            (*typeB) += 4;
+            (*bIndex) = fours[i];
         } else if(result == 4){
-            *typeA += 4;
+            (*typeA) += 4;
         }
     }
 }
@@ -369,7 +400,7 @@ void handleLeftovers(){
 int mysub(int n){
     
     int fourhead[] = {0, 0, 0};
-    int bIndex = 0;
+    int bIndex = -1;
     int typeA = 0;
     int typeB = 0;
     int twoCount = 0;
@@ -378,8 +409,10 @@ int mysub(int n){
     int fours[n/4];
     int pairs[n/4];
     int pairsCount = 0;
+    int majOut;
+    int i;
     
-    for(int i = 1; i < n-4; i+=4){
+    for(i = 1; i <= n-3; i+=4){
         int result = query(i, i+1, i+2, i+3);
         if(result == 0){    //handling zeros
             typeA += 2;
@@ -393,7 +426,8 @@ int mysub(int n){
             }
         } else if(result == 2){
             if(fourhead[0] == 0){
-                int out = bruteForceOnFive(i, i+1, i+2, i+3, i+4, fourhead);
+                int spare = i+4 > n ? 1 : i+4;
+                int out = bruteForceOnFive(i, i+1, i+2, i+3, spare, fourhead);
                 typeA += out;
                 typeB += 5-out;
                 ++i;
@@ -422,7 +456,7 @@ int mysub(int n){
                 typeB += 3;
                 typeA += 1;
                 bIndex = twos[0]+2;
-            } else if(result == 4){
+            } else if(subresult == 4){
                 typeA += 3;
                 typeB += 1;
             }
@@ -432,14 +466,56 @@ int mysub(int n){
         }
     }
     
+    //stop before needing to handle spares (typeA > n/2 || typeB > n/2 || typeA + typeB == n)
+    if((majOut = majorityKnown(typeA, typeB, n)) != 0){
+        //we're done
+        if(majOut == 1)
+            return fourhead[0];
+        if(majOut == 2)
+            return bIndex;
+        return 0;
+    }
+    
+    //handle spare elements
+    int spareElements = n - i;
+    if(fourhead[0] == 0){
+        if(spareElements == 1)
+            return n;
+        else if(spareElements >= 2){
+            int result = query(i, i+1, i+2, n); //n-5 to n-2 are a 0 group
+            if(query(i, i+1, i+2, n-1) == result)
+                return n;
+            else if(spareElements == 3)
+                return n-2;
+            else
+                return 0;
+        }
+    } else {
+        for( ; i <= n; ++i){
+            int result = query(fourhead[0], fourhead[1], fourhead[2], i);
+            if(result == 2){
+                typeB++;
+                bIndex = i;
+            } else {
+                typeA++;
+            }
+        }
+    }
+    
+    if((majOut = majorityKnown(typeA, typeB, n)) != 0){
+        //we're done
+        if(majOut == 1)
+            return fourhead[0];
+        if(majOut == 2)
+            return bIndex;
+        return 0;
+    }
     
     
     //handle:
     //have a bIndex (only left in case of leftovers [all zeroes])
-    //spare elements
-    //no 2's and no 4's
     
-    return 0;
+    return -10;
 }
 
 
@@ -464,7 +540,10 @@ main(){
         biggest = -1;
         errflag = 0;
         for (loop=1; loop<=NLOOP; loop++) {
+            //printf("Loop number: %d - contents: ", loop);
             QCOUNT(0,n);
+            if(loop==296)
+                QCOUNT(4);
             answer = mysub( n );
             //QCOUNT(3);
             if (answer<0) {
