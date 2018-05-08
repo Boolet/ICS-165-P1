@@ -187,7 +187,7 @@ int majorityKnown(int typeA, int typeB, int n){
     return 0;
 }
 
-void twosRunner(int* twos, int twosCount, int* fours, int* foursCount, int* typeA, int* typeB, int* fourhead, int* pairs, int* pairsCount){
+void twosRunner(int* twos, int twosCount, int* fours, int* foursCount, int* typeA, int* typeB, int* fourhead, int* pairs, int* pairsCount, int* bIndex){
     
     int currentHeadParity = -1; //0 is even parity, 1 is odd parity, -1 for unknown; tracking CURRENT twos
     int pairsStartEven[twosCount];    //for the first two unchecked elements being of even parity
@@ -256,6 +256,7 @@ void twosRunner(int* twos, int twosCount, int* fours, int* foursCount, int* type
         if (result == 0){
             knownStart = 0;
             (*typeB) += 2;
+	    (*bIndex) = twos[0];
         }else if(result == 4){
             knownStart = 0;
             (*typeA) += 2;
@@ -438,7 +439,8 @@ int mysub(int n){
     }
     
     if(twoCount > 1)
-        twosRunner(twos, twoCount, fours, &foursCount, &typeA, &typeB, fourhead, pairs, &pairsCount);
+        twosRunner(twos, twoCount, fours, &foursCount, &typeA, &typeB, fourhead, pairs, &pairsCount, &bIndex);
+
     
     handlePairs(pairs, pairsCount, fourhead, &bIndex, &typeA, &typeB);
     handleFours(fours, foursCount, fourhead, &bIndex, &typeA, &typeB);
@@ -471,20 +473,22 @@ int mysub(int n){
         //we're done
         if(majOut == 1)
             return fourhead[0];
-        if(majOut == 2)
+        if(majOut == 2){
             return bIndex;
+	}
         return 0;
     }
     
     //handle spare elements
-    int spareElements = n - i;
+    int spareElements = n - i + 1;
     if(fourhead[0] == 0){
         if(spareElements == 1)
             return n;
         else if(spareElements >= 2){
-            int result = query(i, i+1, i+2, n); //n-5 to n-2 are a 0 group
-            if(query(i, i+1, i+2, n-1) == result)
+            int result = query(i-1, i-2, i-3, n-1); //n-5 to n-2 are a 0 group
+            if(query(i-1, i-2, i-3, n) == result){
                 return n;
+	    }
             else if(spareElements == 3)
                 return n-2;
             else
@@ -514,7 +518,7 @@ int mysub(int n){
     
     //handle:
     //have a bIndex (only left in case of leftovers [all zeroes])
-    
+    printf("Type A: %d, Type B: %d\n", typeA, typeB);
     return -10;
 }
 
@@ -542,9 +546,11 @@ main(){
         for (loop=1; loop<=NLOOP; loop++) {
             //printf("Loop number: %d - contents: ", loop);
             QCOUNT(0,n);
-            if(loop==296)
+            if(loop==121 && n == 18)
                 QCOUNT(4);
             answer = mysub( n );
+	    /*if(loop==216 && n==17)
+		return(0);*/
             //QCOUNT(3);
             if (answer<0) {
                 printf(" *** flagged error %d at n=%d, loop=%d\n",answer,n,loop);
