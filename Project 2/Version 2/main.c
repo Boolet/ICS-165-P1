@@ -365,7 +365,7 @@ void handlePairs(int* pairs, int pairsCount, int* fourhead, int* bIndex, int* ty
     }
 }
 
-void handleFours(int* fours, int foursCount, int* fourhead, int* bIndex, int* typeA, int* typeB){
+void handleFours(int* fours, int foursCount, int* fourhead, int* bIndex, int* typeA, int* typeB, int n){
     int i;
     for(i = 0; i < foursCount-1; i+=2){
         int result = query(fours[i], fours[i+1], fourhead[0], fourhead[1]);
@@ -378,6 +378,9 @@ void handleFours(int* fours, int foursCount, int* fourhead, int* bIndex, int* ty
         } else if(result == 4){
             (*typeA) += 8;
         }
+	if(majorityKnown(*typeA, *typeB, n) != 0){
+	    return;
+	}
     }
     
     //leftover
@@ -437,14 +440,37 @@ int mysub(int n){
             }
         }
     }
-    
+    handleFours(fours, foursCount, fourhead, &bIndex, &typeA, &typeB, n);
+    if((majOut = majorityKnown(typeA, typeB, n)) != 0){
+	if(majOut == 1) return fourhead[0];
+	if(majOut == 2) return bIndex;
+	return 0;
+    }
+    foursCount = 0;
     if(twoCount > 1)
         twosRunner(twos, twoCount, fours, &foursCount, &typeA, &typeB, fourhead, pairs, &pairsCount, &bIndex);
-
+    if((majOut = majorityKnown(typeA, typeB, n)) != 0){
+	if(majOut == 1) return fourhead[0];
+	if(majOut == 2) return bIndex;
+	return 0;
+    }
     
     handlePairs(pairs, pairsCount, fourhead, &bIndex, &typeA, &typeB);
-    handleFours(fours, foursCount, fourhead, &bIndex, &typeA, &typeB);
-    
+    if((majOut = majorityKnown(typeA, typeB, n)) != 0){
+	if(majOut == 1)
+	    return fourhead[0];
+	if(majOut == 2)
+	    return bIndex;
+	return 0;
+    }
+    handleFours(fours, foursCount, fourhead, &bIndex, &typeA, &typeB, n);
+    if((majOut = majorityKnown(typeA, typeB, n)) != 0){
+	if(majOut == 1)
+	    return fourhead[0];
+	if(majOut == 2)
+	    return bIndex;
+	return 0;
+    }
     //handling spare 2
     if(twoCount == 1){
         int result = query(twos[0], twos[0]+1, fourhead[0], fourhead[1]);
@@ -516,9 +542,6 @@ int mysub(int n){
     }
     
     
-    //handle:
-    //have a bIndex (only left in case of leftovers [all zeroes])
-    printf("Type A: %d, Type B: %d\n", typeA, typeB);
     return -10;
 }
 
