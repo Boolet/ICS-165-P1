@@ -26,13 +26,14 @@ int hashForPairs(const pair<char, int> toHash){
 //handles each individual bit
 void addToByte(bool bit, bool* outBuffer, int& bufferSize){
     outBuffer[bufferSize] = bit;
+    cout << bit << endl;
     ++bufferSize;
     if(bufferSize == 8){
         char out = 0;
         for(int i = 0; i < 8; ++i){
             out += outBuffer[i] << i;
         }
-        cout << out;
+        //cout << out << endl;
         bufferSize = 0;
     }
 }
@@ -41,12 +42,13 @@ void addToByte(bool bit, bool* outBuffer, int& bufferSize){
 void flushByte(bool* outBuffer, int& bufferSize){
     for( ; bufferSize < 8; ++bufferSize){
         outBuffer[bufferSize] = 0;
+        cout << 0 << endl;
     }
     char out = 0;
     for(int i = 0; i < 8; ++i){
         out += outBuffer[i] << i;
     }
-    cout << out;
+    //cout << out << endl;
 }
 
 //encodes L+S zeros
@@ -139,6 +141,16 @@ matchData findLongestSubstring(int index, char*& data, CrossLinkDataStructure<en
     return matchData(longestMatchLength, longestMatchRelativeLocation);
 }
 
+//just for testing
+int mainTEST(){
+    int bufferSize = 0;
+    bool outBuffer[8];
+    char* oData = new char[ 1 ];
+    oData[0] = '@';
+    encodeRaw(0, 1, oData, outBuffer, bufferSize);
+    return 0;
+}
+
 int main(int argc, char *argv[]){
     
     //add in parameter reading later
@@ -162,7 +174,7 @@ int main(int argc, char *argv[]){
     //open the infile
     inFile.open("testfile.txt", ios::in|ios::binary|ios::ate);
     if (!inFile) {
-        cerr << "Unable to open file text.txt";
+        cerr << "Unable to open file testfile.txt" << endl;
         exit(1);   // call system to stop
     }
     
@@ -172,9 +184,9 @@ int main(int argc, char *argv[]){
     cout << "Size of file: " << size;
     inFile.seekg(0, ios::beg); // set the pointer to the beginning
     
-    oData = new char[ size+1 ]; //  for the '\0'
-    inFile.read( oData, size );
-    oData[size] = '\0' ; // set '\0'
+    oData = new char[ size ]; //  for the '\0'
+    inFile.read( oData, size-1 );
+    //oData[size] = '\0' ; // set '\0'
     cout << " oData size: " << strlen(oData) << "\n";
     
     
@@ -193,8 +205,9 @@ int main(int argc, char *argv[]){
         while(i + unmatchCount < size
               && (longestMatchData = findLongestSubstring(i + unmatchCount, oData, dataStructure)).first < 2
               && unmatchCount < literalStringLength){
-            unmatchCount++;
+            ++unmatchCount;
         }
+        cout << "i is: " << i << " and unmatchCount is: " << unmatchCount << " and longest match is: " << longestMatchData.first << endl;
         if(unmatchCount > 0)
             encodeRaw(i, unmatchCount, oData, outBuffer, bufferSize);
         if(longestMatchData.first > 1){
@@ -205,8 +218,8 @@ int main(int argc, char *argv[]){
         
     }
     
-    encodeTerminator(outBuffer, bufferSize);
-    flushByte(outBuffer, bufferSize);
+    //encodeTerminator(outBuffer, bufferSize);
+    //flushByte(outBuffer, bufferSize);
     
     
     inFile.close();

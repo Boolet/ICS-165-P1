@@ -5,7 +5,7 @@
 //  Created by Avi Miller on 5/17/18.
 //  Copyright © 2018 Avi Miller. All rights reserved.
 //
-
+/*
 #include "CrossLinkDataStructure.hpp"
 
 template <typename T>
@@ -76,7 +76,7 @@ HashLinkNode<T>* CrossLinkDataStructure<T>::getList(T element){
 }
 
 
-
+*/
 
 
 

@@ -6,6 +6,7 @@
 //  Copyright © 2018 Avi Miller. All rights reserved.
 //
 
+/*
 #include "CrossLinkBucketReader.hpp"
 
 template <typename T>
@@ -35,3 +36,4 @@ T CrossLinkBucketReader<T>::currentNode(){
         throw "CurrentNode called on invalid position";
     return currentOverall->value;
 }
+*/
