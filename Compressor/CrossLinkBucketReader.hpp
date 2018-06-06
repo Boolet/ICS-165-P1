@@ -39,6 +39,7 @@ CrossLinkBucketReader<T>::CrossLinkBucketReader(T startElement, CrossLinkDataStr
 
 template <typename T>
 bool CrossLinkBucketReader<T>::nextInBucket(){
+    //this is where the program can fail. The use of nBucket instead of just currentInBucket->next is an insufficient patch on the problem.
     currentInBucket = nBucket;
     if(nBucket != nullptr)
         nBucket = nBucket->next;

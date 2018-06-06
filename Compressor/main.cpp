@@ -5,13 +5,17 @@
 #include <math.h>
 #include <vector>
 #include <iterator>
+#include <ctime>
 #include "CrossLinkBucketReader.hpp"
 
 using namespace std;
 
-int windowOffsetBits = 11;
-int matchLengthBits = 4;    //2^matchlengthbits
-int literalStringBits = 3;
+bool debugMode = 1;
+int outputBytes = 0;
+
+char windowOffsetBits = 9; //11;
+char matchLengthBits = 4;   //4    //2^matchlengthbits
+char literalStringBits = 3; //3
 
 int windowOffset;
 int matchLengthRaw;
@@ -37,6 +41,7 @@ void addToByte(bool bit, bool* outBuffer, int& bufferSize){
         }
         //cout << " ";
         cout << out;
+        outputBytes++;
         bufferSize = 0;
     }
 }
@@ -48,19 +53,6 @@ void flushByte(bool* outBuffer, int& bufferSize){
     for(int i = 0; i < remaining; ++i){
         addToByte(false, outBuffer, bufferSize);
     }
-    
-    /*
-    cout << " ";
-    for( ; bufferSize < 8; ++bufferSize){
-        outBuffer[bufferSize] = 0;
-        cout << 0;
-    }
-    char out = 0;
-    for(int i = 0; i < 8; ++i){
-        out += outBuffer[i] << i;
-    }
-     */
-    //cout << out;
 }
 
 //encodes L+S zeros
@@ -116,6 +108,11 @@ void encodeBackreference(int length, int relativeStart, bool* outBuffer, int& bu
     
 }
 
+//outputs the parameters for this compression
+void encodeSettings(){
+    cout << windowOffsetBits << matchLengthBits << literalStringBits;
+}
+
 //finds longest matching substring that it can find
 matchData findLongestSubstring(int index, char*& data, size_t dataSize, CrossLinkDataStructure<entry> &dataStructure){
     int longestMatchRelativeLocation = 0;
@@ -161,22 +158,67 @@ matchData findLongestSubstring(int index, char*& data, size_t dataSize, CrossLin
     return matchData(longestMatchLength, longestMatchRelativeLocation);
 }
 
-//just for testing
-int mainTEST(){
-    int bufferSize = 0;
-    bool outBuffer[8];
-    char* oData = new char[ 1 ];
-    oData[0] = '@';
-    encodeRaw(0, 1, oData, outBuffer, bufferSize);
-    return 0;
+//parsing command line arguments
+string parseUserInput(int argc, char* argv[]){
+    if(debugMode == 1){
+        return "book1";
+    }
+    char* fileName = 0;
+    if(argc==1){
+        printf("Filename required");
+        exit(1);
+    } else if(argc>=2 && argc <= 5){
+        for(int i = 1; i < argc; ++i){
+            if(argv[i][0] == '-' && argv[i][2] == '='){
+                try{
+                    string numstr = string(argv[i]).substr(3);
+                    int param = stoi(numstr);
+                    if(argv[i][1] == 'N'){
+                        windowOffsetBits = param;
+                    } else if (argv[i][1] == 'L'){
+                        matchLengthBits = param;
+                    } else if (argv[i][1] == 'S'){
+                        literalStringBits = param;
+                    } else {
+                        printf("Incorrect argument format");
+                        exit(1);
+                    }
+                } catch(exception e) {
+                    printf("Number not found");
+                    exit(1);
+                }
+            } else {
+                if(fileName == 0)
+                    fileName = argv[i];
+                else{
+                    printf("Incorrect argument format");
+                    exit(1);
+                }
+            }
+        }
+        if(fileName == 0){
+            printf("Filename required");
+            exit(1);
+        }
+        return fileName;
+    } else {
+        printf("Too many arguments");
+        exit(1);
+    }
+    return argv[0];
 }
 
+
+//main
 int main(int argc, char *argv[]){
+    string filename = parseUserInput(argc, argv);
     
     //add in parameter reading later
     windowOffset = (1 << windowOffsetBits)-1;
     matchLengthRaw = (1 << matchLengthBits)-1;
     literalStringLength = (1 << literalStringBits) - 1;
+    
+    unsigned long startTime=clock();
     
     
     ifstream inFile;
@@ -185,6 +227,7 @@ int main(int argc, char *argv[]){
     char* oData = 0;
     CrossLinkDataStructure<entry> dataStructure(hashForPairs, windowOffset, 256);
     
+    //fill the window with spaces
     int prefixWindow = windowOffset - matchLengthRaw;
     for(int i = 0; i < prefixWindow; ++i){
         dataStructure.addElement(entry(' ', i - prefixWindow));
@@ -192,7 +235,7 @@ int main(int argc, char *argv[]){
     
     
     //open the infile
-    inFile.open("book1", ios::in|ios::binary|ios::ate);
+    inFile.open(filename, ios::in|ios::binary|ios::ate);
     if (!inFile) {
         cerr << "Unable to open file" << endl;
         exit(1);   // call system to stop
@@ -202,33 +245,25 @@ int main(int argc, char *argv[]){
     inFile.seekg(0, ios::end); // set the pointer to the end
     size_t size = inFile.tellg() ; // get the length of the file
     size--;
-    cout << "Size of file: " << size;
+    //cout << "Size of file: " << size;
     inFile.seekg(0, ios::beg); // set the pointer to the beginning
     
-    oData = new char[ size ]; //  for the '\0'
+    oData = new char[ size ];
     inFile.read( oData, size );
-    //oData[size] = '\0' ; // set '\0'
-    //cout << " oData size: " << strlen(oData) << "\n";
-
+    inFile.close();
     
-    // If we need to load the data in chunks we should do it in
-    // another loop outside of this part, and be clever about
-    // it, because there always needs to be at least 2 to the
-    // 'matchlengthbits' characters in the buffer at the end
+    //output the encoding parameters
+    encodeSettings();
     
     //iterate through all of the characters; i is the head of the current substring
+    //this also fills the rest of the window as it goes
     for(int i = 0; i < size; ){
-    //for(int i = 0; i < buffer.size(); ){
         int unmatchCount = 0;
         matchData longestMatchData;
-        //if(i > 240)
-            //cout << oData[i] << endl;
         
-        while(i + unmatchCount < /*buffer.size()*/ size
-              && (longestMatchData = findLongestSubstring(i + unmatchCount, oData, size /*buffer.size()*/, dataStructure)).first < 2
+        while(i + unmatchCount < size
+              && (longestMatchData = findLongestSubstring(i + unmatchCount, oData, size, dataStructure)).first < 2
               && unmatchCount < literalStringLength){
-            //if(i > 240)
-                //cout << oData[i] << endl;
             ++unmatchCount;
         }
         //cout << "i is: " << i << " and unmatchCount is: " << unmatchCount << " and longest match is: " << longestMatchData.first << endl;
@@ -246,7 +281,11 @@ int main(int argc, char *argv[]){
     flushByte(outBuffer, bufferSize);
     cout << endl;
     
-    inFile.close();
+    unsigned long stopTime=clock();
+    if(debugMode == 1){
+        cerr << "CPU time: " << (stopTime - startTime)/double(CLOCKS_PER_SEC) << endl;
+        cerr << "compressed size: " << float(outputBytes)/float(size) * 100 << endl;
+    }
     
     return 0;
 }
