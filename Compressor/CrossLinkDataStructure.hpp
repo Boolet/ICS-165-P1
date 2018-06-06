@@ -103,6 +103,7 @@ void CrossLinkDataStructure<T>::deleteOldest(){
     delete oldestNode;
     
     oldestNode = nextOldest;
+    oldestNode->back = nullptr;
     --currentElementCount;
 }
 
