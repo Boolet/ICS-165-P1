@@ -82,7 +82,7 @@ int main(int argc, char** argv)
 			value = changeIndex(index, tempNLS);
 			if (value == 1)
 			{
-				for(int i = 0; i < tempNLSC[1]; i++)
+				for(int i = 0; i <= tempNLSC[1]; i++)
 				{
 					window[wIndex+i] = window[wIndex+i-tempNLS[0]];
 					cout << window[wIndex+1-tempNLS[0]];
