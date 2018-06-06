@@ -16,6 +16,7 @@ template <typename T>
 class CrossLinkBucketReader {
     CrossLinkDataStructure<T>* dataStructureToRead;
     HashLinkNode<T>* currentInBucket;
+    HashLinkNode<T>* nBucket = nullptr;
     HashLinkNode<T>* currentOverall;
     bool validPosition = false;
     
@@ -32,11 +33,15 @@ template <typename T>
 CrossLinkBucketReader<T>::CrossLinkBucketReader(T startElement, CrossLinkDataStructure<T>* dataStructure) {
     currentInBucket = currentOverall = dataStructure->getList(startElement);
     validPosition = (currentOverall != nullptr);
+    if(validPosition)
+        nBucket = currentInBucket->next;
 }
 
 template <typename T>
 bool CrossLinkBucketReader<T>::nextInBucket(){
-    currentInBucket = currentInBucket->next;
+    currentInBucket = nBucket;
+    if(nBucket != nullptr)
+        nBucket = nBucket->next;
     currentOverall = currentInBucket;
     validPosition = (currentOverall != nullptr);
     return validPosition;

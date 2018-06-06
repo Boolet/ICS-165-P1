@@ -3,6 +3,8 @@
 #include <fstream>
 #include <iostream>
 #include <math.h>
+#include <vector>
+#include <iterator>
 #include "CrossLinkBucketReader.hpp"
 
 using namespace std;
@@ -19,36 +21,46 @@ typedef pair<char, int> entry;
 typedef pair<int, int> matchData;
 
 //has function used for the CrossLinkDataStructure on pairs<char, int>
-int hashForPairs(const pair<char, int> toHash){
+int hashForPairs(const entry toHash){
     return toHash.first;
 }
 
 //handles each individual bit
 void addToByte(bool bit, bool* outBuffer, int& bufferSize){
     outBuffer[bufferSize] = bit;
-    //cout << bit << endl;
     ++bufferSize;
     if(bufferSize == 8){
         char out = 0;
         for(int i = 0; i < 8; ++i){
+            //cout << outBuffer[i];
             out += outBuffer[i] << i;
         }
-        //cout << out << endl;
+        //cout << " ";
+        cout << out;
         bufferSize = 0;
     }
 }
 
 //output an incomplete byte by just appending zeros
 void flushByte(bool* outBuffer, int& bufferSize){
+    int remaining = (8 - bufferSize) % 8;
+    //cout << "flush";
+    for(int i = 0; i < remaining; ++i){
+        addToByte(false, outBuffer, bufferSize);
+    }
+    
+    /*
+    cout << " ";
     for( ; bufferSize < 8; ++bufferSize){
         outBuffer[bufferSize] = 0;
-        //cout << 0 << endl;
+        cout << 0;
     }
     char out = 0;
     for(int i = 0; i < 8; ++i){
         out += outBuffer[i] << i;
     }
-    //cout << out << endl;
+     */
+    //cout << out;
 }
 
 //encodes L+S zeros
@@ -63,7 +75,7 @@ void encodeTerminator(bool* outBuffer, int& bufferSize){
 void encodeRaw(int startIndex, int length, char*& data, bool* outBuffer, int& bufferSize){
     if(length == 0)
         return;
-    cout << "raw encode of length: " << length << " from index: " << startIndex << " of characters: ";
+    //cout << "raw encode of length: " << length << " from index: " << startIndex << " of characters: ";
     //this part always needs to be matchLengthBits number of zeros
     for(int i = 0; i < matchLengthBits; ++i){
         addToByte(false, outBuffer, bufferSize);
@@ -74,14 +86,14 @@ void encodeRaw(int startIndex, int length, char*& data, bool* outBuffer, int& bu
         addToByte(o, outBuffer, bufferSize);
     }
     for(int i = startIndex; i < startIndex + length; ++i){
-        cout << data[i] << ",";
+        //cout << data[i] << ",";
         for(int j = 7; j >= 0; --j){
             char currentBit = 1 << j;
             bool o = data[i] & currentBit;
             addToByte(o, outBuffer, bufferSize);
         }
     }
-    cout << endl;
+    //cout << endl;
 }
 
 //encodes a sequence of characters that matches an earlier sequence
@@ -89,7 +101,7 @@ void encodeBackreference(int length, int relativeStart, bool* outBuffer, int& bu
     //matchLengthBits for the length of the match
     //and windowOffsetBits for the offset
     
-    cout << "match encode of length: " << length << " with relative start: " << relativeStart << endl;
+    //cout << "match encode of length: " << length << " with relative start: " << relativeStart << endl;
     
     for(int i = matchLengthBits-1; i >= 0; --i){
         int currentBit = 1 << i;
@@ -114,7 +126,7 @@ matchData findLongestSubstring(int index, char*& data, size_t dataSize, CrossLin
     //loop through the bucket (substrings beginning with this character)
     while(reader.isValid()){
         int currentLength = 0;
-        pair<char, int> currentNode = reader.currentNode();
+        entry currentNode = reader.currentNode();
         int currentRelativeLocation = index - currentNode.second;
         
         //iterate along the current substring
@@ -127,7 +139,7 @@ matchData findLongestSubstring(int index, char*& data, size_t dataSize, CrossLin
                     longestMatchRelativeLocation = currentRelativeLocation;
                     
                     //we can add this element to the data structure now
-                    dataStructure.addElement(pair<char, int>(data[index+currentLength-1], index+currentLength-1));
+                    dataStructure.addElement(entry(data[index+currentLength-1], index+currentLength-1));
                     
                     if(currentLength == matchLengthRaw)
                         return matchData(longestMatchLength, longestMatchRelativeLocation);
@@ -144,7 +156,7 @@ matchData findLongestSubstring(int index, char*& data, size_t dataSize, CrossLin
     }
     
     if(longestMatchLength == 0)
-        dataStructure.addElement(pair<char, int>(data[index], index));
+        dataStructure.addElement(entry(data[index], index));
     
     return matchData(longestMatchLength, longestMatchRelativeLocation);
 }
@@ -171,7 +183,7 @@ int main(int argc, char *argv[]){
     int bufferSize = 0;
     bool outBuffer[8];
     char* oData = 0;
-    CrossLinkDataStructure<entry> dataStructure(hashForPairs, windowOffset, 128);
+    CrossLinkDataStructure<entry> dataStructure(hashForPairs, windowOffset, 256);
     
     int prefixWindow = windowOffset - matchLengthRaw;
     for(int i = 0; i < prefixWindow; ++i){
@@ -180,9 +192,9 @@ int main(int argc, char *argv[]){
     
     
     //open the infile
-    inFile.open("testfile.txt", ios::in|ios::binary|ios::ate);
+    inFile.open("book1", ios::in|ios::binary|ios::ate);
     if (!inFile) {
-        cerr << "Unable to open file testfile.txt" << endl;
+        cerr << "Unable to open file" << endl;
         exit(1);   // call system to stop
     }
     
@@ -196,10 +208,8 @@ int main(int argc, char *argv[]){
     oData = new char[ size ]; //  for the '\0'
     inFile.read( oData, size );
     //oData[size] = '\0' ; // set '\0'
-    cout << " oData size: " << strlen(oData) << "\n";
-    
-    
-    
+    //cout << " oData size: " << strlen(oData) << "\n";
+
     
     // If we need to load the data in chunks we should do it in
     // another loop outside of this part, and be clever about
@@ -208,19 +218,20 @@ int main(int argc, char *argv[]){
     
     //iterate through all of the characters; i is the head of the current substring
     for(int i = 0; i < size; ){
+    //for(int i = 0; i < buffer.size(); ){
         int unmatchCount = 0;
         matchData longestMatchData;
-        if(i > 240)
-            cout << oData[i] << endl;
+        //if(i > 240)
+            //cout << oData[i] << endl;
         
-        while(i + unmatchCount < size
-              && (longestMatchData = findLongestSubstring(i + unmatchCount, oData, size, dataStructure)).first < 2
+        while(i + unmatchCount < /*buffer.size()*/ size
+              && (longestMatchData = findLongestSubstring(i + unmatchCount, oData, size /*buffer.size()*/, dataStructure)).first < 2
               && unmatchCount < literalStringLength){
-            if(i > 240)
-                cout << oData[i] << endl;
+            //if(i > 240)
+                //cout << oData[i] << endl;
             ++unmatchCount;
         }
-        cout << "i is: " << i << " and unmatchCount is: " << unmatchCount << " and longest match is: " << longestMatchData.first << endl;
+        //cout << "i is: " << i << " and unmatchCount is: " << unmatchCount << " and longest match is: " << longestMatchData.first << endl;
         if(unmatchCount > 0)
             encodeRaw(i, unmatchCount, oData, outBuffer, bufferSize);
         if(longestMatchData.first > 1){
@@ -231,9 +242,9 @@ int main(int argc, char *argv[]){
         
     }
     
-    //encodeTerminator(outBuffer, bufferSize);
-    //flushByte(outBuffer, bufferSize);
-    
+    encodeTerminator(outBuffer, bufferSize);
+    flushByte(outBuffer, bufferSize);
+    cout << endl;
     
     inFile.close();
     

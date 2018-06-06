@@ -25,6 +25,7 @@ template <typename T> class CrossLinkDataStructure{
     int maxElements = 2048;
     int buckets = 10;
     int currentElementCount = 0;
+    int lastBucketDeletedHash = -1;
     HashLinkNode<T>** bucketArray;  //the head of each bucket is the oldest in the bucket
     HashLinkNode<T>** tailBucketArray;  //the tail is the newest
     HashLinkNode<T>* oldestNode = nullptr;
@@ -38,6 +39,8 @@ public:
     bool isBucketEmpty(T element);
     void addElement(T element);
     void deleteOldest();
+    void print();
+    int getLastDeletedBucket();
 };
 
 template <typename T>
@@ -56,9 +59,10 @@ CrossLinkDataStructure<T>::CrossLinkDataStructure(int (*newHashFunction)(T), int
 
 template <typename T>
 void CrossLinkDataStructure<T>::addElement(T element){
+    //print();
     int newestHash = hash(element);
     HashLinkNode<T>* tailOfBucket = tailBucketArray[newestHash];
-    HashLinkNode<T>* newNode = new HashLinkNode<T>(element, nullptr, tailOfBucket, nullptr);
+    HashLinkNode<T>* newNode = new HashLinkNode<T>(element, nullptr, tailOfBucket, nullptr);    //next, back, sequential
     
     if(newestNode)
         newestNode->sequential = newNode;
@@ -91,14 +95,14 @@ int CrossLinkDataStructure<T>::hash(T element){
 template <typename T>
 void CrossLinkDataStructure<T>::deleteOldest(){
     HashLinkNode<T>* nextOldest = oldestNode->sequential;
-    int oldestHash = hash(oldestNode->value);
+    lastBucketDeletedHash = hash(oldestNode->value);
     
     //the oldest node is guaranteed to be at the top of its linked list in its bucket
-    bucketArray[oldestHash] = oldestNode->next;
+    bucketArray[lastBucketDeletedHash] = oldestNode->next;
     
     //it may also be at the end of that linked list too
-    if(tailBucketArray[oldestHash] == oldestNode)
-        tailBucketArray[oldestHash] = nullptr;
+    if(tailBucketArray[lastBucketDeletedHash] == oldestNode)
+        tailBucketArray[lastBucketDeletedHash] = nullptr;
     
     delete oldestNode;
     
@@ -111,6 +115,33 @@ void CrossLinkDataStructure<T>::deleteOldest(){
 template <typename T>
 HashLinkNode<T>* CrossLinkDataStructure<T>::getList(T element){
     return bucketArray[hash(element)];
+}
+
+template <typename T>
+int CrossLinkDataStructure<T>::getLastDeletedBucket(){
+    return lastBucketDeletedHash;
+}
+
+template<>
+void CrossLinkDataStructure<std::pair<char,int>>::print(){
+    HashLinkNode<std::pair<char,int>>* current = newestNode;
+    if(current!=nullptr)
+        std::cout << current->value.first;
+    //while(current != nullptr){
+        //std::cout << current->value.first;
+    //}
+    std::cout << std::endl;
+}
+
+template<>
+void CrossLinkDataStructure<std::pair<int,int>>::print(){
+    HashLinkNode<std::pair<int,int>>* current = newestNode;
+    if(current!=nullptr)
+        std::cout << current->value.first;
+    //while(current != nullptr){
+    //std::cout << current->value.first;
+    //}
+    std::cout << std::endl;
 }
 
 #endif /* CrossLinkDataStructure_hpp */
