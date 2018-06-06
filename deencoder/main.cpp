@@ -18,7 +18,7 @@ int changeIndex(&index, int* tempNLS)
 	}
 	if(index == 1)
 	{
-		if(tempNLSC[index] == 0)
+		if(tempNLS[index] == 0)
 			index = 2;
 		else
 			index = 0;
@@ -36,7 +36,7 @@ int main(int argc, char** argv)
 	ifstream inFile;
 	char c;
 	int index = 1, wIndex = 0;
-	int bitLength = 0; //Index of NLSC
+	int bitLength = 0; //Index of NLS
 	int currentType = 0; //Checks whether we are looking for the bits of length, offset, string length, or char
 	bitset<16> bitC, currentBits;
 	int NLS3[3], tempNLS[3];
@@ -61,16 +61,16 @@ int main(int argc, char** argv)
 	inFile.get(c);
 	currentC = bitset<16>(c);
 	NLS[2] = (currentC.to_ulong() >> 4);
-	char window[pow(2,NLSC[0])];
-	currentBits |= (currentC << 12 >> 16-NLSC[1]);
+	char window[pow(2,NLS[0])];
+	currentBits |= (currentC << 12 >> 16-NLS[1]);
 	bitLength = 4;
 
 	while(inFile.get(c))
 	{
 		currentC = bitset<16>(c);
-		if(NLSC[index]-bitLength > 8)
+		if(NLS[index]-bitLength > 8)
 		{
-			currentBits |= (currentC << NLSC[index]-bitLength-8);
+			currentBits |= (currentC << NLS[index]-bitLength-8);
 			bitLength += 8;
 		}
 		else
@@ -82,7 +82,7 @@ int main(int argc, char** argv)
 			value = changeIndex(index, tempNLS);
 			if (value == 1)
 			{
-				for(int i = 0; i <= tempNLSC[1]; i++)
+				for(int i = 0; i <= tempNLS[1]; i++)
 				{
 					window[wIndex+i] = window[wIndex+i-tempNLS[0]];
 					cout << window[wIndex+1-tempNLS[0]];
