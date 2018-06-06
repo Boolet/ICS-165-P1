@@ -6,11 +6,11 @@
 
 using namespace std;
 
-int changeIndex(&index, int* tempNLS)
+int changeIndex(int &index, int* tempNLS)
 {
-	'''After having enough bits for a number, changes the index value
-	and returns 1 if a back reference was complete, 2 if an encoded raw was complete,
-	and 0 otherwise to tell the main which process to continue'''
+	//After having enough bits for a number, changes the index value
+	//and returns 1 if a back reference was complete, 2 if an encoded raw was complete,
+	//and 0 otherwise to tell the main which process to continue
 	if(index == 0)
 	{
 		index = 1;
@@ -38,8 +38,8 @@ int main(int argc, char** argv)
 	int index = 1, wIndex = 0, leftover = 0;
 	int bitLength = 0; //Index of NLS
 	int currentType = 0; //Checks whether we are looking for the bits of length, offset, string length, or char
-	bitset<16> bitC, currentBits;
-	int NLS3[3], tempNLS[3];
+	bitset<16> currentC, currentBits;
+	int NLS[3], tempNLS[3];
 
 	if(argc != 2)
 	{
@@ -53,23 +53,20 @@ int main(int argc, char** argv)
         	exit(1);   // call system to stop
 	}
 
-	inFile.get(c);
-	currentC = bitset<16>(c);
-	NLS[0] = (currentC.to_ulong() >> 4);
-	NLS[1] = (currentC.to_ulong() << 12 >> 12);
-
-	inFile.get(c);
-	currentC = bitset<16>(c);
-	NLS[2] = (currentC.to_ulong() >> 4);
-	char window[pow(2,NLS[0])];
-	currentBits |= (currentC << 12 >> 16-NLS[1]);
-	bitLength = 4;
+	for (int i = 0; i < 3; i++)
+	{
+		inFile.get(c);
+		currentC = bitset<16>(c);
+		NLS[i] = currentC.to_ulong();
+	}
+	char window[(int)pow(2,NLS[0])];
+	bitLength = 0;
 	
 
 	while(inFile.get(c))
 	{
 		currentC = bitset<16>(c);
-		int leftover = 8
+		int leftover = 8;
 		if(NLS[index]-bitLength > 8)
 		{
 			currentBits |= (currentC << NLS[index]-bitLength-8);
@@ -77,13 +74,13 @@ int main(int argc, char** argv)
 		}
 		else
 		{
-			do while(leftover >= NLS[index])
+			do
 			{
 				currentBits |= (currentC << 16 - leftover >> 16 - (NLS[index] - bitLength));
 				leftover -= NLS[index] - bitLength;
 				tempNLS[index] = currentBits.to_ulong();
 				currentBits = bitset<16>(0);
-				value = changeIndex(index, tempNLS);
+				int value = changeIndex(index, tempNLS);
 				if (value == 1)
 				{
 					for(int i = 0; i <= tempNLS[1]; i++)
@@ -112,7 +109,7 @@ int main(int argc, char** argv)
 					tempNLS[2] = 0;
 					tempNLS[1] = 0;
 				}
-			}
+			} while(leftover >= NLS[index]);
 			currentBits |= (currentC << 16 - leftover >> 16-NLS[index]);
 			bitLength = leftover;
 		}
