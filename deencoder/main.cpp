@@ -76,7 +76,7 @@ int main(int argc, char** argv)
 		else
 		{
 			currentBits |= (currentC >> 8 - (NLS[index] - bitLength));
-			int leftover = NLS[index] - bitLength;
+			int leftover = 8 - NLS[index] + bitLength;
 			tempNLS[index] = currentBits.to_ulong();
 			currentBits = bitset<16>(0);
 			value = changeIndex(index, tempNLS);
