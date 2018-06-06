@@ -109,6 +109,7 @@ int main(int argc, char** argv)
 					tempNLS[2] = 0;
 					tempNLS[1] = 0;
 				}
+				bitLength = 0;
 			} while(leftover >= NLS[index]);
 			currentBits |= (currentC << 16 - leftover >> 16-NLS[index]);
 			bitLength = leftover;
