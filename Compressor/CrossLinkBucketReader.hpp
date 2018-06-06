@@ -6,11 +6,11 @@
 //  Copyright © 2018 Avi Miller. All rights reserved.
 //
 
-#ifndef CrossLinkBucketReader_hpp
-#define CrossLinkBucketReader_hpp
-
 #include <stdio.h>
 #include "CrossLinkDataStructure.hpp"
+
+#ifndef CrossLinkBucketReader_hpp
+#define CrossLinkBucketReader_hpp
 
 template <typename T>
 class CrossLinkBucketReader {

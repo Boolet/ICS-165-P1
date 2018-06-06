@@ -11,29 +11,95 @@ int windowOffsetBits = 11;
 int matchLengthBits = 4;    //2^matchlengthbits
 int literalStringBits = 3;
 
+int windowOffset;
+int matchLengthRaw;
+int literalStringLength;
+
 typedef pair<char, int> entry;
 typedef pair<int, int> matchData;
-typedef pair<int, matchData> unmatchData;
 
 //has function used for the CrossLinkDataStructure on pairs<char, int>
 int hashForPairs(const pair<char, int> toHash){
     return toHash.first;
 }
 
+//handles each individual bit
+void addToByte(bool bit, bool* outBuffer, int& bufferSize){
+    outBuffer[bufferSize] = bit;
+    ++bufferSize;
+    if(bufferSize == 8){
+        char out = 0;
+        for(int i = 0; i < 8; ++i){
+            out += outBuffer[i] << i;
+        }
+        cout << out;
+        bufferSize = 0;
+    }
+}
+
+//output an incomplete byte by just appending zeros
+void flushByte(bool* outBuffer, int& bufferSize){
+    for( ; bufferSize < 8; ++bufferSize){
+        outBuffer[bufferSize] = 0;
+    }
+    char out = 0;
+    for(int i = 0; i < 8; ++i){
+        out += outBuffer[i] << i;
+    }
+    cout << out;
+}
+
+//encodes L+S zeros
+void encodeTerminator(bool* outBuffer, int& bufferSize){
+    for(int i = 0; i < matchLengthBits + literalStringBits; ++i){
+        addToByte(false, outBuffer, bufferSize);
+    }
+}
+
+
 //encodes a sequence of characters without a reference
-void encodeRaw(int startIndex, int length, char*& data){
+void encodeRaw(int startIndex, int length, char*& data, bool* outBuffer, int& bufferSize){
+    if(length == 0)
+        return;
     
+    //this part always needs to be matchLengthBits number of zeros
+    for(int i = 0; i < matchLengthBits; ++i){
+        addToByte(false, outBuffer, bufferSize);
+    }
+    for(int i = literalStringBits-1; i >= 0; --i){
+        int currentBit = 1 << i;
+        bool o = length & currentBit;
+        addToByte(o, outBuffer, bufferSize);
+    }
+    for(int i = startIndex; i < startIndex + length; ++i){
+        for(int j = 7; j >= 0; --j){
+            char currentBit = 1 << j;
+            bool o = data[i] & currentBit;
+            addToByte(o, outBuffer, bufferSize);
+        }
+    }
 }
 
 //encodes a sequence of characters that matches an earlier sequence
-void encodeBackreference(int relativeStart, int length){
+void encodeBackreference(int length, int relativeStart, bool* outBuffer, int& bufferSize){
+    //matchLengthBits for the length of the match
+    //and windowOffsetBits for the offset
+    
+    for(int i = matchLengthBits-1; i >= 0; --i){
+        int currentBit = 1 << i;
+        bool o = length & currentBit;
+        addToByte(o, outBuffer, bufferSize);
+    }
+    for(int i = windowOffsetBits-1; i >= 0; --i){
+        int currentBit = 1 << i;
+        bool o = relativeStart & currentBit;
+        addToByte(o, outBuffer, bufferSize);
+    }
     
 }
 
-//finds and encodes the longest matching substring that it can find
-//we will need to limit it to 2^matchLengthBits number of characters
+//finds longest matching substring that it can find
 matchData findLongestSubstring(int index, char*& data, CrossLinkDataStructure<entry> &dataStructure){
-    int maxMatchLength = pow(2, matchLengthBits)-1;
     int longestMatchRelativeLocation = 0;
     int longestMatchLength = 0;
     CrossLinkBucketReader<entry> reader(entry(data[index], index), &dataStructure);
@@ -56,7 +122,7 @@ matchData findLongestSubstring(int index, char*& data, CrossLinkDataStructure<en
                     longestMatchLength = currentLength;
                     longestMatchRelativeLocation = currentRelativeLocation;
                     
-                    if(currentLength == maxMatchLength)
+                    if(currentLength == matchLengthRaw)
                         return matchData(longestMatchLength, longestMatchRelativeLocation);
                 }
             } else {
@@ -73,42 +139,30 @@ matchData findLongestSubstring(int index, char*& data, CrossLinkDataStructure<en
     return matchData(longestMatchLength, longestMatchRelativeLocation);
 }
 
-//finds the longest substring of characters for which no two sequential characters have a match
-unmatchData findLongestUnmatched(int index, char*& data, CrossLinkDataStructure<entry> &dataStructure){
-    int i = 2;
-    dataStructure.addElement(entry(data[index+1], index+1));
-    
-    matchData info;
-    int maxUnmatchLength = pow(2, literalStringBits);
-    while(i < maxUnmatchLength){
-        info = findLongestSubstring(index+i, data, dataStructure);
-        if(info.first > 1)
-            break;
-        else if(info.first == 0){
-            dataStructure.addElement(entry(data[index+i], index+i));
-        }
-        ++i;
-    }
-    
-    return unmatchData(i, info);
-}
-
-
-
 int main(int argc, char *argv[]){
     
-    ifstream inFile;
-    char* oData = 0;
-    int windowSize = pow(2, windowOffsetBits)-1;
-    CrossLinkDataStructure<entry> dataStructure(hashForPairs, windowSize, 128);
-    
     //add in parameter reading later
+    windowOffset = (1 << windowOffsetBits)-1;
+    matchLengthRaw = (1 << matchLengthBits)-1;
+    literalStringLength = (1 << literalStringBits) - 1;
     
     
-    //open the file
-    inFile.open("test.txt", ios::in|ios::binary|ios::ate);
+    ifstream inFile;
+    int bufferSize = 0;
+    bool outBuffer[8];
+    char* oData = 0;
+    CrossLinkDataStructure<entry> dataStructure(hashForPairs, windowOffset, 128);
+    
+    int prefixWindow = windowOffset - matchLengthRaw;
+    for(int i = 0; i < prefixWindow; ++i){
+        dataStructure.addElement(entry(' ', i - prefixWindow));
+    }
+    
+    
+    //open the infile
+    inFile.open("testfile.txt", ios::in|ios::binary|ios::ate);
     if (!inFile) {
-        cerr << "Unable to open file datafile.txt";
+        cerr << "Unable to open file text.txt";
         exit(1);   // call system to stop
     }
     
@@ -124,6 +178,8 @@ int main(int argc, char *argv[]){
     cout << " oData size: " << strlen(oData) << "\n";
     
     
+    
+    
     // If we need to load the data in chunks we should do it in
     // another loop outside of this part, and be clever about
     // it, because there always needs to be at least 2 to the
@@ -131,19 +187,26 @@ int main(int argc, char *argv[]){
     
     //iterate through all of the characters; i is the head of the current substring
     for(int i = 0; i < size; ){
-        matchData longestMatchData = findLongestSubstring(i, oData, dataStructure);
+        int unmatchCount = 0;
+        matchData longestMatchData;
         
-        //if we matched 0 or 1 character, then we'll have to do a raw enconding
-        if(longestMatchData.first < 2){
-            unmatchData info = findLongestUnmatched(i, oData, dataStructure);
-            encodeRaw(i, info.first, oData);
-            encodeBackreference(info.second.first, info.second.second);
-            i+=info.first+info.second.first;    //we looked at all the elements unmatched and matched
-        } else {
-            encodeBackreference(longestMatchData.first, longestMatchData.second);
-            i+=longestMatchData.first;  //we only looked at the matched elements
+        while(i + unmatchCount < size
+              && (longestMatchData = findLongestSubstring(i + unmatchCount, oData, dataStructure)).first < 2
+              && unmatchCount < literalStringLength){
+            unmatchCount++;
         }
+        if(unmatchCount > 0)
+            encodeRaw(i, unmatchCount, oData, outBuffer, bufferSize);
+        if(longestMatchData.first > 1){
+            encodeBackreference(longestMatchData.first, longestMatchData.second, outBuffer, bufferSize);
+            unmatchCount += longestMatchData.first;
+        }
+        i += unmatchCount;
+        
     }
+    
+    encodeTerminator(outBuffer, bufferSize);
+    flushByte(outBuffer, bufferSize);
     
     
     inFile.close();
