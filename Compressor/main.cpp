@@ -10,10 +10,10 @@
 
 using namespace std;
 
-bool debugMode = 1;
+bool debugMode = 0;
 int outputBytes = 0;
 
-char windowOffsetBits = 9; //11;
+char windowOffsetBits = 11; //11;
 char matchLengthBits = 4;   //4    //2^matchlengthbits
 char literalStringBits = 3; //3
 
